@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 import { browser } from '$app/environment'
 import { aiActivity } from '$lib/activities.js'
 
@@ -35,10 +35,19 @@ async function sendMessages(handleTool)
 	aiActivity.set(true);
 	try
 	{
-		var tools = [
-			{ "type": "bash_20241022", "name": "bash" }
-		];
-		const response = await client.beta.messages.create({max_tokens: 1024, messages: messages, model: 'claude-3-5-sonnet-20241022', tools: tools, betas: ["computer-use-2024-10-22"]}); 
+		var dc = get(displayConfig);
+		var tool = dc ? { type: "computer_20241022", name: "computer", display_width_px: dc.width, display_height_px: dc.height } : { type: "bash_20241022", name: "bash" }
+		const response = await client.beta.messages.create({max_tokens: 1024, messages: messages, model: 'claude-3-5-sonnet-20241022', tools: [tool], betas: ["computer-use-2024-10-22"]}); 
+		// Remove all the image payloads, we don't want to send them over and over again
+		for(var i=0;i<messages.length;i++)
+		{
+			var c = messages[i].content;
+			if(Array.isArray(c))
+			{
+				if(c[0].type == "tool_result" && c[0].content && c[0].content[0].type == "image")
+					delete c[0].content;
+			}
+		}
 		var content = response.content;
 		// Be robust to multiple response
 		for(var i=0;i<content.length;i++)
@@ -52,12 +61,26 @@ async function sendMessages(handleTool)
 			{
 				addMessageInternal(response.role, [c]);
 				var commandResponse = await handleTool(c.input);
-				addMessageInternal("user", [{type: "tool_result", tool_use_id: c.id, content: commandResponse}]);
+				var responseObj = {type: "tool_result", tool_use_id: c.id };
+				if(commandResponse != null)
+				{
+					if(commandResponse instanceof Error)
+					{
+						console.warn(`Tool error: ${commandResponse.message}`);
+						responseObj.content = commandResponse.message;
+						responseObj.is_error = true;
+					}
+					else
+					{
+						responseObj.content = commandResponse;
+					}
+				}
+				addMessageInternal("user", [responseObj]);
 				sendMessages(handleTool);
 			}
 			else
 			{
-				debugger;
+				console.warn(`Invalid response type: ${c.type}`);
 			}
 		}
 		if(response.stop_reason == "end_turn")
@@ -95,6 +118,7 @@ function initialize()
 export const apiState = writable("KEY_REQUIRED");
 export const messageList = writable(messages);
 export const currentMessage = writable("");
+export const displayConfig = writable(null);
 
 if(browser)
 	initialize();

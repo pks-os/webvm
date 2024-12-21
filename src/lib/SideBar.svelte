@@ -15,7 +15,7 @@
 		{ icon: 'fas fa-wifi', info: 'Networking', activity: null },
 		{ icon: 'fas fa-microchip', info: 'CPU', activity: cpuActivity },
 		{ icon: 'fas fa-compact-disc', info: 'Disk', activity: diskActivity },
-		{ icon: 'fas fa-brain', info: 'ClaudeAI', activity: aiActivity },
+		{ icon: 'fas fa-robot', info: 'ClaudeAI', activity: aiActivity },
 		null,
 		{ icon: 'fas fa-book-open', info: 'Posts', activity: null },
 		{ icon: 'fab fa-discord', info: 'Discord', activity: null },
@@ -33,20 +33,19 @@
 	}
 
 	export let handleTool;
-	export let needsDisplay;
 </script>
 
 <div class="flex flex-row w-14 h-full bg-neutral-700" on:mouseleave={hideInfo}>
 	<div class="flex flex-col shrink-0 w-14 text-gray-300">
 		{#each icons as i}
-			{#if i && (!needsDisplay || i.info != 'ClaudeAI')}
+			{#if i}
 				<Icon
 					icon={i.icon}
 					info={i.info}
 					activity={i.activity}
 					on:mouseover={(e) => showInfo(e.detail)}
 				/>
-			{:else if i == null}
+			{:else}
 				<div class="grow" on:mouseover={(e) => showInfo(null)}></div>
 			{/if}
 		{/each}
